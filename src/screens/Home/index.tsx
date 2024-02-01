@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text, View, FlatList } from 'react-native';
 
 import { styles } from './styles';
 
@@ -12,6 +12,29 @@ import { ProductEntity } from '../../database/entities/ProductEntity';
 export function Home() {
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [products, setProducts] = useState<ProductEntity[]>([]);
+
+  async function handleRemoveItem(product: ProductEntity) {
+    Alert.alert(
+      'Remover',
+      `Remover produto ${product.name}?`,
+      [
+        {text: 'Nào', style: 'cancel'},
+        {text: 'Sim', onPress: async () => {
+          await dataSource.manager.remove(product)
+          loadProducts()
+        }}
+      ]
+    )
+  }
+
+  async function loadProducts() {
+    const productRepository = dataSource.getRepository(ProductEntity)
+    const products = await productRepository.find()
+    setProducts(products)
+    setName('')
+    setQuantity('')
+  }
 
   async function handleAdd() {
     if(!name.trim() || !quantity.trim()) return Alert.alert('Informe o produto e a quantidade!')
@@ -22,13 +45,15 @@ export function Home() {
 
     await dataSource.manager.save(product)
 
-    return Alert.alert('Produto salvo', `Produto ${product.id} cadastrado com sucesso!`)
+    Alert.alert('Produto salvo', `Produto ${product.id} cadastrado com sucesso!`)
+    loadProducts()
   }
   
   useEffect(() => {
     const connect = async () => {
       if(!dataSource.isInitialized) {
         await dataSource.initialize()
+        loadProducts()
       }
     }
 
@@ -61,10 +86,18 @@ export function Home() {
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Itens</Text>
-        <Text style={styles.headerQuantity}>2</Text>
+        <Text style={styles.headerQuantity}> {products.length} </Text>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({item}) => (
+          <Product key={item.id} name={item.name} quantity={item.quantity} onRemove={() => handleRemoveItem(item)} />
+          )}
+       />
+
+      {/* <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.items}
         showsVerticalScrollIndicator={false}
@@ -79,7 +112,7 @@ export function Home() {
           quantity={2}
           onRemove={() => { }}
         />
-      </ScrollView>
+      </ScrollView> */}
     </View>
   );
 }
